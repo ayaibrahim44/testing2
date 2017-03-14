@@ -1,0 +1,192 @@
+#include "Connector.h"
+
+Connector::Connector(Statement* Src, Statement* Dst)	
+//When a connector is created, it must have a source statement and a destination statement
+//There are no free connectors in the folwchart
+{
+	Selected = false;
+	SrcStat = Src;
+	DstStat = Dst;
+}
+
+void Connector::setSrcStat(Statement *Src)
+{	SrcStat = Src;	}
+
+Statement* Connector::getSrcStat()
+{	return SrcStat;	}
+
+void Connector::setDstStat(Statement *Dst)
+{	DstStat = Dst;	}
+
+Statement* Connector::getDstStat()
+{	return DstStat;	}
+
+
+void Connector::setStartPoint(Point P)
+{	Start = P;	}
+
+Point Connector::getStartPoint()
+{	return Start;	}
+
+void Connector::setEndPoint(Point P)
+{	End = P;	}
+
+Point Connector::getEndPoint()
+{	return End;	}
+
+void Connector::Draw(Output* pOut) const
+{
+	//if (SrcStat->getType() == "SMPL_IFCONDITION" || SrcStat->getType() == "VAR_IFCONDITION")
+	//{
+		
+	//}
+	/*if (Start.y < End.y) // src stat. is above dst stat.
+	{
+		int temp_dist = End.y - Start.y;
+		Point temp_pnt1, temp_pnt2;
+		temp_pnt1.x = Start.x;
+		temp_pnt1.y = Start.y + temp_dist / 2;
+		temp_pnt2.x = End.x;
+		temp_pnt2.y = Start.y + temp_dist / 2;
+		pOut->DrawConnector(Start, temp_pnt1);
+		pOut->DrawConnector(temp_pnt1, temp_pnt2);
+		pOut->DrawConnector(temp_pnt2, End);
+	}
+	else if (Start.y > End.y) //src stat is below dst stat
+	{
+		if (Start.x < End.x)
+		{
+			int temp_dist = abs(End.x - Start.x);
+			Point temp_pnt1, temp_pnt2;
+			temp_pnt1.x = Start.x + 2 * temp_dist;
+			temp_pnt1.y = Start.y;
+			temp_pnt2.x = Start.x + 2 * temp_dist;
+			temp_pnt2.y = End.y;
+			pOut->DrawConnector(Start, temp_pnt1);
+			pOut->DrawConnector(temp_pnt1, temp_pnt2);
+			pOut->DrawConnector(temp_pnt2, End);
+		}
+		else if (Start.x > End.x)
+		{
+			int temp_dist = abs(End.x - Start.x);
+			Point temp_pnt1, temp_pnt2;
+			temp_pnt1.x = Start.x - 2 * temp_dist;
+			temp_pnt1.y = Start.y;
+			temp_pnt2.x = Start.x - 2 * temp_dist;
+			temp_pnt2.y = End.y;
+			pOut->DrawConnector(Start, temp_pnt1);
+			pOut->DrawConnector(temp_pnt1, temp_pnt2);
+			pOut->DrawConnector(temp_pnt2, End);
+		}
+	}*/
+	pOut->DrawConnector(Start, End, Selected);
+}
+
+void Connector::Save(ofstream &Outfile)
+{
+	if (SrcStat->getType() == "SMPL_IFCONDITION" || SrcStat->getType() == "VAR_IFCONDITION"
+		|| SrcStat->getType() == "SMPL_WHILELOOP" || SrcStat->getType() == "VAR_WHILELOOP")
+	{
+		if (SrcStat->InFirstHalf(Start))
+			SrcStat->setBranch(true);
+		else SrcStat->setBranch(false);
+	}
+	Outfile << SrcStat->getID() << "\t" << DstStat->getID() << "\t" << SrcStat->getBranch() << "\n";
+}
+void Connector::Load(ifstream &Infile)
+{
+	int branch;
+	Infile >> branch;
+	if (branch == 1)
+		SrcStat->setBranch(true);
+	else if (branch == 2)
+		SrcStat->setBranch(false);
+
+	Start = SrcStat->getOutlet();
+	End = DstStat->getInlet();
+	SrcStat->setConnector(this);
+}
+
+void Connector::ZoomIn()
+{
+	if (SrcStat->getType() == "SMPL_IFCONDITION" || SrcStat->getType() == "VAR_IFCONDITION"
+		|| SrcStat->getType() == "SMPL_WHILELOOP" || SrcStat->getType() == "VAR_WHILELOOP")
+	{
+		SrcStat->setBranch(true);
+		if (SrcStat->getConnector() == this);
+		else SrcStat->setBranch(false);
+	}
+	setStartPoint(SrcStat->getOutlet());
+	setEndPoint(DstStat->getInlet());
+}
+
+void Connector::ZoomOut()
+{
+	if(SrcStat->getType() == "SMPL_IFCONDITION" || SrcStat->getType() == "VAR_IFCONDITION"
+		|| SrcStat->getType() == "SMPL_WHILELOOP" || SrcStat->getType() == "VAR_WHILELOOP")
+	{
+		SrcStat->setBranch(true);
+		if (SrcStat->getConnector() == this);
+		else SrcStat->setBranch(false);
+	}
+	setStartPoint(SrcStat->getOutlet());
+	setEndPoint(DstStat->getInlet());
+}
+
+bool Connector::InArea(Point P) const
+{
+	float m = float(Start.y - End.y) / float(Start.x - End.x);
+	float a = P.y - Start.y;
+	float b = m* (P.x - Start.x);
+	if (Start.x < End.x)
+	{
+		if (P.x > Start.x && P.x < End.x)
+		{
+			if (Start.y < End.y)
+			{
+				if (P.y > Start.y && P.y < End.y)
+					return (b - a <= 3.5 && b - a >= -3.5);
+			}
+			else
+			{
+				if (P.y > End.y && P.y < Start.y)
+					return (b - a <= 3.5 && b - a >= -3.5);
+			}
+		}
+	}
+	else
+	{
+		if (P.x > End.x && P.x < Start.x)
+		{
+			if (Start.y < End.y)
+			{
+				if (P.y > Start.y && P.y < End.y)
+					return (b - a <= 3.5 && b - a >= -3.5);
+			}
+			else
+			{
+				if (P.y > End.y && P.y < Start.y)
+					return (b - a <= 3.5 && b - a >= -3.5);
+			}
+		}
+	}
+	return false;
+}
+
+void Connector::Edit(Output* out, Input* in)
+{
+	out->PrintMessage("Choose new source statement");
+	Point p;
+	in->GetPointClicked(p);
+	Statement* Sourcestat = pManager->GetStatement(p);
+}
+
+bool Connector::IsSelected()
+{
+	return Selected;
+}
+
+void Connector::setSelect(bool b)
+{
+	Selected = b;
+}

@@ -1,0 +1,669 @@
+#include "ApplicationManager.h"
+#include "Actions\AddStart.h"
+#include "Actions\AddEnd.h"
+#include "Actions\AddSmplAssign.h"
+#include "Actions\AddSnglOperator.h"
+#include "Actions\AddIfCondition.h"
+#include "Actions\AddWhileLoop.h"
+#include "Actions\Edit.h"
+#include "Actions\Move.h"
+#include "Actions\Select.h"
+#include "Actions\AddConnector.h"
+#include "GUI\Input.h"
+#include "GUI\Output.h"
+#include "Actions\Save.h"
+#include "Actions\Load.h"
+#include "Actions\AddGenerateCode.h"
+#include "Actions\ZoomIn.h"
+#include "Actions\ZoomOut.h"
+#include "Actions\DsnMode.h"
+#include "Actions\SimMode.h"
+#include "Actions\Simulate.h"
+
+using namespace std;
+
+//Constructor
+ApplicationManager::ApplicationManager()
+{
+	//Create Input and output
+	pOut = new Output;
+	pIn = pOut->CreateInput();
+	
+	StatCount = 0;
+	ConnCount = 0;
+	pSelectedStat = NULL;	//no Statement is selected yet
+	ZoomedIn = ZoomedOut = false;
+	
+	//Create an array of Statement pointers and set them to NULL		
+	for(int i=0; i<MaxCount; i++)
+	{
+		StatList[i] = NULL;	
+		ConnList[i] = NULL;
+	}
+}
+
+//==================================================================================//
+//								Actions Related Functions							//
+//==================================================================================//
+ActionType ApplicationManager::GetUserAction() const
+{
+	//Ask the input to get the action from the user.
+	return pIn->GetUserAction();		
+}
+////////////////////////////////////////////////////////////////////////////////////
+//Creates an action and executes it
+void ApplicationManager::ExecuteAction(ActionType ActType) 
+{
+	Action* pAct = NULL;
+	
+	//According to ActionType, create the corresponding action object
+	switch (ActType)
+	{
+		case SIM_MODE:
+		pAct = new SimMode(this);
+		break;
+
+		case DSN_MODE:
+		pAct = new DsnMode(this);
+		break;
+
+		case ADD_START:
+		pAct = new AddStart(this);
+		break;
+
+		case ADD_END:
+		pAct = new AddEnd(this);
+		break;
+		case ADD_SMPL_ASSIGN:
+			pAct = new AddSmplAssign(this);
+			break;
+		case ADD_SNGL_OPERAT:
+		pAct = new AddSnglOperator(this);
+		break;
+
+		case ADD_IF_CONDITION: ///create AddCondition Action here
+			pAct = new AddIfCondition(this);
+			break;
+		case ADD_WHILE_LOOP:
+			pAct = new AddWhileLoop(this);
+			break;
+
+		case SELECT:
+			pAct = new Select(this);
+			break;
+			///create Select Action here
+
+			break;
+
+		case EXIT:
+			///create Exit Action here
+			
+			break;
+		case EDIT_STAT:
+			pAct = new AddEdit(this);
+			break;
+
+		case MOVE:
+			pAct = new AddMove(this);
+			break;
+		case SAVE:
+			pAct = new AddSave(this);
+			break;
+		case LOAD:
+			pAct = new AddLoad(this);
+			break;
+
+		case ADD_CONNECTOR:
+			pAct = new AddConnector(this);
+			break;
+			
+		case CODE:
+			pAct = new AddGenerateCode(this);
+			break;
+
+		case ZOOM_IN:
+			pAct = new AddZoomIn(this);
+			break;
+
+		case ZOOM_OUT:
+			pAct = new AddZoomOut(this);
+			break;
+
+		case RUN:
+			pAct = new AddSimulate(this);
+			break;
+
+		case STATUS:
+			return;
+
+	}
+	
+	//Execute the created action
+	if(pAct != NULL)
+	{
+		pAct->Execute();//Execute
+		delete pAct;	//Action is not needed any more ==> delete it
+	}
+}
+
+
+
+//==================================================================================//
+//						Statements Management Functions								//
+//==================================================================================//
+//Add a statement to the list of statements
+void ApplicationManager::AddStatement(Statement *pStat)
+{
+	if(StatCount < MaxCount)
+		StatList[StatCount++] = pStat;
+	
+}
+
+void ApplicationManager::appAddConnector(Connector* pConn)
+{
+	if (ConnCount < MaxCount)
+		ConnList[ConnCount++] = pConn;
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+Statement *ApplicationManager::GetStatement(Point P) const
+{
+	//If this point P(x,y) belongs to a statement return a pointer to it.
+	//otherwise, return NULL
+
+	for (int i = 0; i < StatCount; i++)
+	{
+		if (StatList[i]->InArea(P))
+			return StatList[i];
+	}
+	///Add your code here to search for a statement given a point P(x,y)	
+
+	return NULL;
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+//Returns the selected statement
+Statement *ApplicationManager::GetSelectedStatement() const
+{	return pSelectedStat;	}
+
+////////////////////////////////////////////////////////////////////////////////////
+//Set the statement selected by the user
+void ApplicationManager::SetSelectedStatement(Statement *pStat)
+{	pSelectedStat = pStat;	}
+
+
+//==================================================================================//
+//							Interface Management Functions							//
+//==================================================================================//
+
+//Draw all figures on the user interface
+void ApplicationManager::UpdateInterface() const
+{
+	if (UI.AppMode == DESIGN)
+		pOut->CreateDesignToolBar();
+	else pOut->CreateSimulationToolBar();
+	pOut->CreateStatusBar();
+	pOut->ClearDrawArea();
+	//Draw all statements
+	for (int i = 0; i<StatCount; i++)
+		StatList[i]->Draw(pOut);
+
+	//Draw all connections
+	for (int i = 0; i<ConnCount; i++)
+		ConnList[i]->Draw(pOut);
+
+}
+////////////////////////////////////////////////////////////////////////////////////
+//Return a pointer to the input
+Input *ApplicationManager::GetInput() const
+{	return pIn; }
+//Return a pointer to the output
+Output *ApplicationManager::GetOutput() const
+{	return pOut; }
+////////////////////////////////////////////////////////////////////////////////////
+
+
+//Destructor
+ApplicationManager::~ApplicationManager()
+{
+	for(int i=0; i<StatCount; i++)
+		delete StatList[i];
+	for(int i=0; i<StatCount; i++)
+		delete ConnList[i];
+	delete pIn;
+	delete pOut;
+	
+}
+
+int ApplicationManager::getStatCount() const
+{
+	return StatCount;
+}
+
+void ApplicationManager::setStatCount(int n)
+{
+	StatCount = n;
+}
+
+Statement* ApplicationManager::GetStatement(int id) const
+{
+	for (int i = 0; i < StatCount; i++)
+	{
+		if (StatList[i]->getID() == id)
+			return StatList[i];
+	}	
+	return NULL;
+}
+
+
+void ApplicationManager::Save() 
+{
+	string file;
+	pOut->PrintMessage("Save as ..");
+	file = pIn->GetString(pOut);
+	pOut->PrintMessage("Saving file");
+	file += ".txt";
+	Outfile.open(file);
+	Outfile << StatCount << "\n";
+	for (int i = 0; i < StatCount; i++)
+	{
+		StatList[i]->Save(Outfile);
+	}
+	Outfile << ConnCount << "\n";
+	for (int i = 0; i < ConnCount; i++)
+	{
+		ConnList[i]->Save(Outfile);
+	}
+	Outfile.close();
+	pOut->PrintMessage("File saved");
+}
+
+void ApplicationManager::getTrueFalseBlocks(Statement* Cond)
+{
+	Statement *Tb, *Fb; //pointers to the last statement in the true/false blocks
+
+	Cond->setBranch(true); //get the true connector 
+	Tb = Cond->getConnector()->getDstStat();
+
+	Cond->setBranch(false); //get the false connector
+	Fb = Cond->getConnector()->getDstStat();
+
+	pair<Statement*, Statement*> TFblock;
+	TFblock.first = TFblock.second = NULL;
+
+	Statement* const OriginalFb = Fb;
+	if (Tb->getConnector()->getDstStat() == Fb->getConnector()->getDstStat())
+	{
+		TFblock.first = Tb;
+		TFblock.second = Fb;
+		Cond->setTrueFalseB(TFblock);
+		return;
+	}
+
+	while (Tb->getConnector() != NULL)
+	{
+		while (Fb->getConnector() != NULL)
+		{
+			if (Tb->getConnector()->getDstStat() == Fb->getConnector()->getDstStat())
+			{
+				TFblock.first = Tb;
+				TFblock.second = Fb;
+				Cond->setTrueFalseB(TFblock);
+				return;
+			}
+			Fb = Fb->getConnector()->getDstStat();
+		}
+		Fb = OriginalFb;
+		Tb = Tb->getConnector()->getDstStat();
+	}
+	Cond->setTrueFalseB(TFblock);
+}
+
+void ApplicationManager::GenerateCondCode(Statement* Current)
+{
+
+	if (Current->getType() == "END")
+		return;
+
+	if (Current->getType() == "SMPL_IFCONDITION" || Current->getType() == "VAR_IFCONDITION")
+	{
+		getTrueFalseBlocks(Current);
+		Statement* const OrigCond = Current;
+
+		if (OrigCond->getTrueFalseB().first == OrigCond->getTrueFalseB().second)
+		{
+			Current->setBranch(true);
+			if (Current->getConnector()->getDstStat() == OrigCond->getTrueFalseB().first)
+			{
+				//no true statement
+				Current->setBranch(false);
+
+				Current->GenerateCode(CppCode);
+				while (Current->getConnector()->getDstStat() != OrigCond->getTrueFalseB().second)
+				{
+					CppCode << "\t";
+					if (Current->getConnector()->getDstStat()->getType() == "SMPL_IFCONDITION" ||
+						Current->getConnector()->getDstStat()->getType() == "VAR_IFCONDITION")
+					{
+						GenerateCondCode(Current->getConnector()->getDstStat());
+						getTrueFalseBlocks(Current->getConnector()->getDstStat());
+						Current = Current->getTrueFalseB().first->getConnector()->getDstStat();
+					}
+					else
+					{
+						GenerateCondCode(Current->getConnector()->getDstStat());
+						Current = Current->getConnector()->getDstStat();
+					}
+				}
+				CppCode << "\n}";
+				GenerateCondCode(Current->getConnector()->getDstStat());
+				return;
+			}
+
+			Current->setBranch(false);
+			if (Current->getConnector()->getDstStat() == OrigCond->getTrueFalseB().second)
+			{
+				//no false statement
+				Current->setBranch(true);
+				Current->GenerateCode(CppCode);
+				while (Current->getConnector()->getDstStat() != OrigCond->getTrueFalseB().first)
+				{
+					CppCode << "\t";
+					if (Current->getConnector()->getDstStat()->getType() == "SMPL_IFCONDITION" ||
+						Current->getConnector()->getDstStat()->getType() == "VAR_IFCONDITION")
+					{
+						GenerateCondCode(Current->getConnector()->getDstStat());
+						getTrueFalseBlocks(Current->getConnector()->getDstStat());
+						Current = Current->getTrueFalseB().first->getConnector()->getDstStat();
+					}
+					else
+					{
+						GenerateCondCode(Current->getConnector()->getDstStat());
+						Current = Current->getConnector()->getDstStat();
+					}
+				}
+				CppCode << "\n}";
+				GenerateCondCode(Current->getConnector()->getDstStat());
+				return;
+			}
+		}
+
+		else
+		{
+			//generate the code for the true block
+			Current->setBranch(true);
+			Current->GenerateCode(CppCode);
+
+			while (Current->getConnector()->getDstStat() != OrigCond->getTrueFalseB().first->getConnector()->getDstStat())
+			{
+				CppCode << "\t";
+				if (Current->getConnector()->getDstStat()->getType() == "SMPL_IFCONDITION" ||
+					Current->getConnector()->getDstStat()->getType() == "VAR_IFCONDITION")
+				{
+					GenerateCondCode(Current->getConnector()->getDstStat());
+					getTrueFalseBlocks(Current->getConnector()->getDstStat());
+					Current = Current->getTrueFalseB().first->getConnector()->getDstStat();
+				}
+				else
+				{
+					GenerateCondCode(Current->getConnector()->getDstStat());
+					Current = Current->getConnector()->getDstStat();
+				}
+
+			}
+
+			CppCode << "\n}\nelse\n{\n";
+
+			//generate the code for the false block
+			Current = OrigCond;
+			Current->setBranch(false);
+
+			while (Current->getConnector()->getDstStat() != OrigCond->getTrueFalseB().second->getConnector()->getDstStat())
+			{
+				CppCode << "\t";
+				if (Current->getConnector()->getDstStat()->getType() == "SMPL_IFCONDITION" ||
+					Current->getConnector()->getDstStat()->getType() == "VAR_IFCONDITION")
+				{
+					GenerateCondCode(Current->getConnector()->getDstStat());
+					getTrueFalseBlocks(Current->getConnector()->getDstStat());
+					Current = Current->getTrueFalseB().first->getConnector()->getDstStat();
+				}
+				else
+				{
+					GenerateCondCode(Current->getConnector()->getDstStat());
+					Current = Current->getConnector()->getDstStat();
+				}
+			}
+			CppCode << "\n}";
+			return;
+		}
+	}
+	Current->GenerateCode(CppCode);
+}
+
+void ApplicationManager::Generatecode()
+{
+
+	CppCode.open("cppCodemain.cpp");
+
+	Statement* StartStat;
+
+	for (int i = 0; i < StatCount; i++) //initialize the current pointer to start
+
+	{
+		if (StatList[i]->getType() == "START")
+		{
+			StartStat = StatList[i];
+			break;
+		}
+	}
+	Generatecode(StartStat);
+}
+
+void ApplicationManager::Generatecode(Statement* Current)
+{
+	while (Current->getType() != "END")
+	{
+		if (Current->getType() == "SMPL_IFCONDITION" || Current->getType() == "VAR_IFCONDITION")
+		{
+			GenerateCondCode(Current);
+			Current = Current->getTrueFalseB().first->getConnector()->getDstStat();
+		}
+		/*else if (Current->getType() == "SMPL_WHILELOOP" || Current->getType() == "VAR_WHILELOOP")
+		{
+
+			GenerateCondCode(Current);
+
+			Statement *TrueStat, *FalseStat; //pointers to the last statement in the true/false statement
+			bool direction;
+
+			Current->setBranch(true); //get the true connector 
+			TrueStat = Current->getConnector()->getDstStat();
+
+			Current->setBranch(false); //get the false connector
+			FalseStat = Current->getConnector()->getDstStat();
+
+			Statement* EndLoop = getLoop(TrueStat, FalseStat, Current, direction);
+
+			if (direction == true)
+			{
+				Current->setBranch(false);
+				Current = Current->getConnector()->getDstStat();
+			}
+			else
+			{
+				Current->setBranch(true);
+				Current = Current->getConnector()->getDstStat();
+			}
+
+		}*/
+		else
+		{
+			Current->GenerateCode(CppCode);
+			Current = Current->getConnector()->getDstStat();
+		}
+	}
+	Current->GenerateCode(CppCode);
+	pOut->PrintMessage("Code generated");
+}
+
+StatementType ApplicationManager::getStatementType(string type)
+{
+	if (type == "START")
+		return START;
+	if (type == "END")
+		return END;
+	if (type == "READ")
+		return READ;
+	if (type == "WRITE")
+		return WRITE;
+	if (type == "SMPLASSIGN")
+		return SMPLE_ASSIGNMENT;
+	if (type == "VARASSIGN")
+		return VAR_ASSIGNMENT;
+	if (type == "SNGLOP")
+		return SNGLOPERATOR;
+	if (type == "SMPL_IFCONDITION")
+		return SMPLE_IFCONDITIONAL;
+	if (type == "VAR_IFCONDITION")
+		return VAR_IFCONDITIONAL;
+	if (type == "SMPL_WHILELOOP")
+		return SMPLE_WHILELOOP;
+	if (type == "VAR_WHILELOOP")
+		return VAR_WHILELOOP;
+	return NO_STAT;
+}
+
+void ApplicationManager::Load()
+{
+	string file;
+	pOut->PrintMessage("Enter the file's name");
+	file = pIn->GetString(pOut);
+	pOut->PrintMessage("Loading file");
+	file += ".txt";
+	Infile.open(file);
+	if (!Infile.is_open())
+	{
+		pOut->PrintMessage("File doesn't exist");
+		return;
+	}
+	int n;
+	Infile >> n;
+
+	Statement* pStat = NULL;
+
+	for (int j = 0; j < n; j++)
+	{
+		string type;
+		Infile >> type;
+		StatementType stype = getStatementType(type);
+		switch (stype)
+		{
+		case START:
+			pStat = new Start;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case END:
+			pStat = new End;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case SMPLE_ASSIGNMENT:
+			pStat = new SmplAssign;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case SNGLOPERATOR:
+			pStat = new SnglOperator;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case SMPLE_IFCONDITIONAL:
+			pStat = new SmpleIfCondition;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case VAR_IFCONDITIONAL:
+			pStat = new VarIfCondition;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case SMPLE_WHILELOOP:
+			pStat = new SmpleWhileLoop;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		case VAR_WHILELOOP:
+			pStat = new VarWhileLoop;
+			pStat->Load(Infile);
+			AddStatement(pStat);
+			break;
+		}
+
+	}
+
+	Connector* pConn = NULL;
+	Infile >> n;
+	for (int j = 0; j < n; j++)
+	{
+		int id1, id2;
+		Infile >> id1 >> id2;
+		Statement* CurrSrc = GetStatement(id1);
+		Statement* CurrDst = GetStatement(id2);
+
+		pConn = new Connector(CurrSrc, CurrDst);
+		pConn->Load(Infile);
+		CurrSrc->setConnector(pConn);
+		appAddConnector(pConn);
+	}
+
+	Infile.close();
+}
+
+void ApplicationManager::ZoomIn()
+{
+	if (!ZoomedIn)
+	{
+		for (int i = 0; i < StatCount; i++)
+		{
+			StatList[i]->ZoomIn(pOut);
+		}
+		ZoomedIn = true;
+		ZoomedOut = false;
+	}
+}
+
+void ApplicationManager::ZoomOut()
+{
+	if (!ZoomedOut)
+	{
+		for (int i = 0; i < StatCount; i++)
+		{
+			StatList[i]->ZoomOut(pOut);
+		}
+		ZoomedOut = true;
+		ZoomedIn = false;
+	}
+}
+
+void ApplicationManager::Simulate()
+{
+	Statement* Current;
+
+	for (int i = 0; i < StatCount; i++) //initialize the current pointer to start
+
+	{
+		if (StatList[i]->getType() == "START")
+			Current = StatList[i];
+	}
+
+	Current = Current->getConnector()->getDstStat();
+
+	while (Current->getType() != "END")
+	{
+		Current->Simulate(Variables,pIn,pOut);
+		Current = Current->getConnector()->getDstStat();
+	}
+
+}
